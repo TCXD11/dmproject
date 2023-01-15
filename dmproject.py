@@ -43,6 +43,7 @@ from scipy.stats import ttest_ind
 from scipy.stats import chi2_contingency
 from sklearn.preprocessing import LabelEncoder
 from sklearn.cluster import KMeans
+
 import geopy.distance
 from imblearn.over_sampling import SMOTE
 import warnings
@@ -50,13 +51,15 @@ warnings.filterwarnings('ignore')
 
 st.header("Project")
 
-st.write("Project Members:")
+st.subheader("Project Members:")
 st.write("(1) 1181102924 Timothy Chang Qing Jun")
 st.write("(2) 1181103257 Lye Hong Zheng Marcus")
 st.write("(3) 1181103302 Foo Zhi Yao")
 st.write("(4) 1181103285 Wong Qian Qing")
 
+st.header("Dataset")
 df = pd.read_csv('dataset.csv')
+st.write("The original dataset of the project (dataset.csv) is shown below:")
 df
 
 df = df.drop(columns=['Basket_colour', 'Shirt_Colour', 'shirt_type', 'Pants_Colour', 'pants_type', 'Attire', 'Spectacles'])
@@ -96,8 +99,6 @@ wt = wt.rename(columns = {'temperature_2m (°C)':'temperature', 'relativehumidit
 wt_copy = wt.drop(columns=['Date', 'Time', 'weathercode'])
 wt_copy
 
-st.write("Combine original dataset with extra dataset")
-
 dt = pd.to_datetime(df['Date'].astype(str) + ' ' + df['Time'].astype(str))
 df.insert(2, 'DateTime', dt)
 df['DateTime'] = df['DateTime'].dt.round('H')
@@ -107,7 +108,7 @@ df = pd.merge(df, wt_copy, how='left', on=['DateTime'])
 df.head()
 
 
-st.write("Additional dataset 2: distance")
+st.header("Additional dataset 2: distance")
 
 st.write("A random laundry service shop is selected as the center point and the distance between each of the customers and the laundry shop is calculated.")
 
@@ -117,20 +118,20 @@ laun_coords = (3.060292314138968, 101.62708937958328)
 df['distance'] = df.apply(lambda x: geopy.distance.geodesic(laun_coords, (x.latitude, x.longitude)).km, axis=1)
 df['distance']
 
+st.write("The original dataset is combined with the extra datasets to form the full dataset, shown below:")
+df
 
-st.write("Exploratory Data Analysis (EDA)")
+st.header("Exploratory Data Analysis (EDA)")
 
-st.write("Check for datatypes and columns")
-
+st.header("Check for datatypes and columns:")
+st.write("The columns names, as well as their respective data types, are shown below:")
 df.dtypes
 
-df.columns
+st.header("Check for null values:")
 
-st.write("Check for null values")
+st.write(df.isna().sum())
 
-df.isna().sum()
-
-st.write("The solution implemented is to fill in missing values with the mean or median of the column, for numerical and categorical data, respectively")
+st.write("The solution implemented is to fill in missing values with the mean or median of the column, for numerical and categorical data, respectively.")
 
 timespent_mean = df['TimeSpent_minutes'].mean()
 df['TimeSpent_minutes'] = df['TimeSpent_minutes'].fillna(value=timespent_mean)
@@ -139,9 +140,11 @@ totalspend_mean = df['TotalSpent_RM'].mean()
 df['TotalSpent_RM'] = df['TotalSpent_RM'].fillna(value=totalspend_mean)
 
 df = df.apply(lambda x: x.fillna(x.value_counts().index[0]))
+st.write("After filling data:")
+df
 
-st.write("Check for imbalanced data")
-st.write("After checking the datatset, two columns stand out as imbalanced: Kids_Category and Basket_Size.")
+st.header("Check for imbalanced data")
+st.write("After manually checking the datatset, two columns stand out as imbalanced: Kids_Category and Basket_Size.")
 
 fig = plt.figure(figsize=(10, 5))
 sns.countplot(x='Kids_Category', data = df)
@@ -166,16 +169,20 @@ t_stat, p = ttest_ind(df_kidsDrinks.query('With_Kids=="yes"')['buyDrinks'], df_k
 st.write("Using t-test, the final p value is: ", round(p,3))
 
 st.markdown("$H_0$: There is no significant difference between the means of buyDrinks for the respective groups of With_Kids.")
-st.markdown("After performing t-test, the p-value obtained is 0.968 which is larger than 0.05. Therefore, we fail to reject $H_0$. There is no significant difference between the means of buyDrinks for the respective groups of With_Kids.")
+st.markdown("After performing t-test, the p-value obtained is 0.91 which is larger than 0.05. Therefore, we fail to reject $H_0$. There is no significant difference between the means of buyDrinks for the respective groups of With_Kids.")
 
 st.subheader("EDA Q2: Is gender and Body_Size independent?")
 
 df_gender_bodysize = df[['Gender', 'Body_Size']]
 
 crosstab = pd.crosstab(df_gender_bodysize['Gender'], df_gender_bodysize['Body_Size'])
-fig = plt.figure(figsize=(10, 5))
-crosstab.plot(kind='bar', stacked=True, title='Stacked Bar Chart for Gender and Body_Size', rot=0)
-st.pyplot(fig)
+
+chart1 = alt.Chart(df_gender_bodysize.groupby(["Gender", "Body_Size"]).size().reset_index(name="Count")).mark_bar().encode(
+    x='Gender:N',
+    y='Count:Q',
+	color='Body_Size:N'	
+)
+chart1
 
 contigency= pd.crosstab(df_gender_bodysize['Gender'], df_gender_bodysize['Body_Size'])
 st.write(contigency)
@@ -184,16 +191,18 @@ c, p, dof, expected = chi2_contingency(contigency)
 st.write("Using chi square test, the final p value is: ",round(p,3))
 
 st.markdown("$H_0$: There is no significant relationship between Gender and Body_Size.")
-st.markdown("After performing chi square test the p-value obtained is 0.057 which is larger than 0.05. Therefore, we fail to reject $H_0$. There is no significant relationship between Gender and Body_Size, and thus the two variables are independent.")
+st.markdown("After performing chi square test the p-value obtained is 0.046 which is smaller than 0.05. Therefore, we reject $H_0$. There is a significant relationship between Gender and Body_Size, and thus the two variables are not independent.")
 
 st.subheader("EDA Q3: Is Race & kids_Category independent?")
 
 df_race_kidscat = df[['Race', 'Kids_Category']]
 
-crosstab2 = pd.crosstab(df_race_kidscat['Race'], df_race_kidscat['Kids_Category'])
-fig = plt.figure(figsize=(10, 5))
-crosstab2.plot(kind='bar', stacked=True, title='Stacked Bar Chart for Race and Kid_cat', rot=0)
-st.pyplot(fig)
+chart2 = alt.Chart(df_race_kidscat.groupby(['Race', 'Kids_Category']).size().reset_index(name="Count")).mark_bar().encode(
+    x='Kids_Category:N',
+    y='Count:Q',
+	color='Race:N'	
+)
+chart2
 
 contigency= pd.crosstab(df_race_kidscat['Race'], df_race_kidscat['Kids_Category'])
 st.write(contigency)
@@ -210,22 +219,29 @@ df_basket = df[['Basket_Size','Race']]
 ct = pd.crosstab(index=df_basket['Race'],columns=df_basket['Basket_Size'])
 st.write(ct)
 
+chart3 = alt.Chart(df_basket.groupby(['Basket_Size', 'Race']).size().reset_index(name="Count")).mark_bar().encode(
+    x='Basket_Size:N',
+    y='Count:Q',
+	color='Race:N'	
+)
+chart3
+
 chi2_result = chi2_contingency(ct)
 st.write('Using chi square test, the final p value is: ', chi2_result[1])
 
-fig = plt.figure(figsize=(10, 10))
-df_basket.groupby(['Basket_Size', 'Race']).size().unstack().plot(kind='bar', stacked=True)
-st.pyplot(fig)
-
 st.markdown("$H_0$: There is no significant relationship between Basket_Size and Race.")
-st.markdown("After performing t-test the p-value obtained is 0.001 which is smaller than 0.05. Therefore, we reject $H_0$. There is a significant relationship between Basket_Size and Race, and thus the two variables are not independent.")
+st.markdown("After performing t-test the p-value obtained is ~0.01 which is smaller than 0.05. Therefore, we reject $H_0$. There is a significant relationship between Basket_Size and Race, and thus the two variables are not independent.")
 
 st.subheader("EDA Q5: Does with_Kids impact the Basket_Size?")
 
 df_kids = df[['With_Kids', 'Basket_Size']]
-fig = plt.figure(figsize=(10, 10))
-df_kids.groupby(['With_Kids', 'Basket_Size']).size().unstack().plot(kind='bar', stacked=True)
-st.pyplot(fig)
+
+chart4 = alt.Chart(df_kids.groupby(['With_Kids', 'Basket_Size']).size().reset_index(name="Count")).mark_bar().encode(
+    x='With_Kids:N',
+    y='Count:Q',
+	color='Basket_Size:N'	
+)
+chart4
 
 contigency= pd.crosstab(df_kids['With_Kids'], df_kids['Basket_Size'])
 st.write(contigency)
@@ -233,11 +249,10 @@ st.write(contigency)
 c, p, dof, expected = chi2_contingency(contigency)
 st.write('Using chi square test, the final p value is: ', p)
 
-
 st.markdown("$H_0$: There is no significant relationship between With_Kids and Basket_Size.")
-st.markdown("After performing t-test the p-value obtained is 0.001 which is smaller than 0.05. Therefore, we reject $H_0$. There is a significant relationship between With_Kids and Basket_Size, and thus the two variables are not independent.")
+st.markdown("After performing t-test the p-value obtained is ~0.000001 which is smaller than 0.05. Therefore, we reject $H_0$. There is a significant relationship between With_Kids and Basket_Size, and thus the two variables are not independent.")
 
-st.header("Questions for Predictive Modeling")
+st.header("Questions for Predictive Models")
 
 st.header("Question 1: What factors impact the Basket_Size?")
 
@@ -256,6 +271,7 @@ y = df_le.Basket_Size
 X = df_le.drop("Basket_Size", 1)
 colnames = X.columns
 
+st.write("Running model...")
 rf = RandomForestClassifier(n_jobs = -1,
                             class_weight = "balanced",
                             max_depth = 5)
@@ -289,33 +305,35 @@ X = df_le.drop("Basket_Size", 1)
 cols = boruta_score.Features[0:5]
 X = X[cols].copy()
 
+st.write("Running model...")
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.4, random_state=5)
 lr = LogisticRegression(multi_class='multinomial')
 lr.fit(X_train, y_train)
 y_pred = lr.predict(X_test)
 
 st.write('Model accuracy : ', metrics.accuracy_score(y_test, y_pred)*100,'%') 
-st.write(classification_report(y_test, y_pred))
+st.write(pd.DataFrame(classification_report(y_test, y_pred, output_dict=True)).transpose())
 
 prob_LR = lr.predict_proba(X_test)
 prob_LR = prob_LR[:, 1]
-st.write(prob_LR)
 
 st.subheader("Logistic Regression with SMOTE")
+
 
 os = SMOTE()
 columns = X_train.columns
 os_data_X, os_data_y = os.fit_resample(X_train, y_train)
 
+st.write("Running model...")
 lr1 = LogisticRegression()
 lr1.fit(os_data_X, os_data_y.ravel())
 predictions = lr1.predict(X_test)
 
-st.write(classification_report(y_test, predictions))
+st.write('Model accuracy : ', metrics.accuracy_score(y_test, predictions)*100,'%')
+st.write(pd.DataFrame(classification_report(y_test, predictions, output_dict=True)).transpose())
 
 prob_LR_SMOTE = lr1.predict_proba(X_test)
 prob_LR_SMOTE = prob_LR_SMOTE[:, 1]
-st.write(prob_LR_SMOTE)
 
 st.write("ROC curve is plotted to compare the performance between SMOTE and non-SMOTE dataset on Logistic Regression.")
 
@@ -326,7 +344,7 @@ def get_roc_curve(true_y, y_prob):
 fpr_LR, tpr_LR = get_roc_curve(y_test, prob_LR)
 fpr_LR_SMOTE, tpr_LR_SMOTE = get_roc_curve(y_test, prob_LR_SMOTE)
 
-fig = plt.figure(figsize=(10, 10))
+fig = plt.figure(figsize=(10, 5))
 plt.plot(fpr_LR, tpr_LR, color='blue', label='Naive Bayes Classifier')
 plt.plot(fpr_LR_SMOTE, tpr_LR_SMOTE, color='red', label='Naive Bayes Classifier with SMOTE') 
 
@@ -351,6 +369,7 @@ X = X[cols].copy()
 
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.20)
 
+st.write("Running model...")
 clf = RandomForestClassifier(n_estimators = 100)
 
 clf.fit(X_train, y_train)
@@ -361,7 +380,6 @@ st.write("Model accuracy: ", metrics.accuracy_score(y_test, y_pred)*100,'%')
 
 prob_RF = clf.predict_proba(X_test)
 prob_RF = prob_RF[:, 1]
-st.write(prob_RF)
 
 auc_RF = roc_auc_score(y_test, prob_RF)
 
@@ -373,10 +391,10 @@ params_rf = {'n_estimators': [200, 300, 400, 500],
              'min_samples_leaf': [0.1, 0.2, 0.3],
              'max_features':['log2', 'sqrt'],
              'random_state':[1, 3, 5, 10]}
-st.write("Below are the list of parameters:")
-st.write(params_rf)
+st.write("Below are the lists of parameters:")
+st.write(str(params_rf).replace('\'','\"').replace('], "',']  \n"').replace('{', '').replace('}', '').replace('[', '').replace(']', ''))
 
-
+st.write("Running model...")
 grid_rf = GridSearchCV(estimator=clf,
                       param_grid=params_rf,
                       scoring='neg_mean_squared_error',
@@ -384,22 +402,11 @@ grid_rf = GridSearchCV(estimator=clf,
                       verbose=1,
                       n_jobs=-1)
 
-
-# In[46]:
-
-
 grid_rf.fit(X_train, y_train)
 
-
-# In[48]:
-
-
 best_hyperparams = grid_rf.best_params_ 
-st.write('Best hyperparameters:\n', best_hyperparams)
-
-
-# In[49]:
-
+st.write('Best hyperparameters:')
+st.write(str(best_hyperparams).replace('\'','\"').replace(', "','  \n"').replace('{', '').replace('}', ''))
 
 best_model = grid_rf.best_estimator_
 
@@ -407,17 +414,16 @@ y_pred = best_model.predict(X_test)
 
 st.write("Model accuracy (with hyperparameter tuning): ", metrics.accuracy_score(y_test, y_pred)*100,'%')
 
-
 st.subheader("Model 3: Naive Bayes")
  
-st.write("'weather' column is used as X.")
+st.write("'weather' column is used as X in order to see if weather alone can accurately predict Basket_Size.")
 
 y = df_le.Basket_Size
 X = df_le.drop("Basket_Size", 1)
 X = X[['weather']]
 
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.20)
-
+st.write("Running model...")
 nb = GaussianNB()
 nb.fit(X_train, y_train)
 y_pred = nb.predict(X_test)
@@ -425,7 +431,6 @@ st.write('Model accuracy: ', nb.score(X_test, y_test)*100,'%')
 
 prob_NB = nb.predict_proba(X_test)
 prob_NB = prob_NB[:, 1]
-st.write(prob_NB)
 
 auc_NB = roc_auc_score(y_test, prob_NB)
 
@@ -433,19 +438,19 @@ auc_NB = roc_auc_score(y_test, prob_NB)
 st.subheader("Hyperparameter Tuning using GridSearchCV")
 
 st.write("As Naive Bayes model has a smoothing hyperparameter, GridSearchCV was used to find the most optimal smooothing hyperparameter value for the model.")
-st.markdown("A range of 100 numbers from 10^-9 to to 1 is given to GridSearchCV, spaced evenly on a logarithmic scale.")
+st.markdown("A range of 100 numbers from $10^{-9}$ to to 1 is given to GridSearchCV, spaced evenly on a logarithmic scale.")
 
 
 param_grid_nb = {
     'var_smoothing': np.logspace(0,-9, num=100)
 }
 
+st.write("Running model...")
 nbModel_grid = GridSearchCV(estimator=GaussianNB(), 
                             param_grid=param_grid_nb, 
                             verbose=1, 
                             cv=10, 
                             n_jobs=-1)
-
 nbModel_grid.fit(X_train, y_train)
 y_pred = nbModel_grid.predict(X_test)
 
@@ -465,27 +470,27 @@ def get_stacking():
     model = StackingClassifier(estimators=level0, final_estimator=level1, cv=5)
     return model
 
+st.write("Running model...")
 ec = get_stacking()
 ec.fit(X_train, y_train)
 y_pred = ec.predict(X_test)
 
-print("Model accuracy (Stacking Model): ", metrics.accuracy_score(y_test, y_pred)*100,'%')
+st.write("Model accuracy (Stacking Model): ", metrics.accuracy_score(y_test, y_pred)*100,'%')
 
 # Calculate AUC
 prob_EC = ec.predict_proba(X_test)
 prob_EC = prob_EC[:, 1]
-st.write(prob_EC)
 
 auc_EC = roc_auc_score(y_test, prob_EC)
 
-
+st.subheader("Comparison of models")
 st.write("The ROC curve of the above models are compared against each other.")
 
 fpr_NB, tpr_NB = get_roc_curve(y_test, prob_NB)
 fpr_RF, tpr_RF = get_roc_curve(y_test, prob_RF)
 fpr_EC, tpr_EC = get_roc_curve(y_test, prob_EC)
 
-fig = plt.figure(figsize=(10, 10))
+fig = plt.figure(figsize=(10, 5))
 
 plt.plot(fpr_NB, tpr_NB, color='orange', label='Naive Bayes') 
 plt.plot(fpr_RF, tpr_RF, color='blue', label='Random Forest Classifier')
@@ -498,6 +503,14 @@ plt.title('Receiver Operating Characteristic (ROC) Curve')
 plt.legend()
 
 st.pyplot(fig)
+st.write("Comparison of AUC score:")
+st.write("AUC of Random Forest model: ", auc_RF*100,'%')
+st.write("AUC of Naive Bayes model: ", auc_NB*100,'%')
+st.write("AUC of Stacking model: ", auc_EC*100,'%')
+
+st.write("The difference between the final testing accuracy of the models are generally not visibly significant.")
+st.write("However, Random Forest model usually has a higher AUC score, suggesting that Random Forest model is geneally more reliable in predictions.")
+st.write("Note that actual results shown here may differ due to random states.")
 
 st.header("Question 2: Does weather impact the sales (TotalSpent_RM)?")
 
@@ -505,7 +518,6 @@ st.subheader("Model 1: Linear Regression")
 
 df3 = df.copy()
 df3 = df3.drop(columns=['Date', 'Time', 'DateTime'])
-df3.head()
 
 col_list = [col for col in df3.columns.tolist() if df3[col].dtype.name == "object"]
 df_lr = df3[col_list]
@@ -513,9 +525,8 @@ df3 = df3.drop(col_list, 1)
 df_lr = df_lr.apply(LabelEncoder().fit_transform)
 df_lr = pd.concat([df3, df_lr], axis = 1)
 
-df_lr.columns
-
 df_lr = df_lr[['temperature_2m (?C)', 'humidity', 'rainfall', 'weather', 'TotalSpent_RM']]
+st.write("Below is the dataset used for the model, only taking the weather data with TotalSpent_RM:")
 df_lr
 
 y = df_lr.TotalSpent_RM
@@ -530,17 +541,18 @@ upper_tri = cor_matrix.where(np.triu(np.ones(cor_matrix.shape),k=1).astype(np.bo
 
 to_drop = [column for column in upper_tri.columns if any(upper_tri[column] > 0.65)]
 st.write("The dropped column(s):")
-st.write(to_drop)
+st.write(str(to_drop).replace('[','').replace(']',''))
 
 X = X.drop(columns=to_drop)
 
+st.write("Running model...")
 model = sm.OLS(y, X).fit()
 predictions = model.predict(X)
 
 st.write(model.summary())
 
 st.header("Association Rule Mining (Shirt color, type, pants color, type and attire)")
- 
+
 st.write("Association Rule Mining is used to find relationships that are common between shirt color, shirt type, pants color, pants type, as well as attire.")
 
 df_asm = pd.read_csv('dataset.csv')
@@ -601,6 +613,7 @@ st.write(X)
 
 st.write("An elbow curve graph is plotted to determine the best k value.")
 
+st.write("Plotting graph...")
 distortions = []
 for i in range(1, 10):
     km = KMeans(
@@ -612,7 +625,7 @@ for i in range(1, 10):
     distortions.append(km.inertia_)
 
 # plot
-fig = plt.figure(figsize=(10, 10))
+fig = plt.figure(figsize=(10, 5))
 plt.plot(range(1, 10), distortions, marker='x')
 plt.xlabel('Number of clusters')
 plt.ylabel('Distortion')
@@ -622,17 +635,21 @@ st.pyplot(fig)
 st.write("From the graph, we can determine that after k=3, the reduction in distortion is less significant. Thus, we choose k=3.")
 st.write("Thus, the KMeans algorithm is run with k=3 and then the clusters are assigned.")
 
+st.write("Running model...")
 kmeans = KMeans(n_clusters = 3, init ='random', random_state=0)
 kmeans.fit(X)
 labels = kmeans.labels_
 centers = kmeans.cluster_centers_
 X['cluster'] = labels
-#X
-
+st.write("Below is the dataset with the cluster labels:")
+X
 
 st.write("A scatter plot is plotted to visualise the clusters.")
 
-fig = plt.figure(figsize=(10, 10))
-X.plot.scatter(x = 'latitude', y = 'longitude', c=labels, s=50, cmap='viridis')
-plt.scatter(centers[:, 0], centers[:, 1], c='black', s=200, alpha=0.5)
-st.pyplot(fig)
+chart5 = alt.Chart(X).mark_circle(size=60).encode(
+	x=alt.X("latitude",scale=alt.Scale(zero=False)),
+	y=alt.Y("longitude",scale=alt.Scale(zero=False)),
+	color="cluster",
+	
+)
+chart5
