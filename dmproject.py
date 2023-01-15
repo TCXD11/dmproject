@@ -33,7 +33,6 @@ from sklearn.metrics import classification_report
 from sklearn.linear_model import LinearRegression
 import statsmodels.api as sm
 
-import xgboost as xgb
 from sklearn.metrics import mean_squared_error
 from sklearn.naive_bayes import GaussianNB
 from sklearn.cluster import KMeans
