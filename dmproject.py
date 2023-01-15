@@ -42,7 +42,8 @@ from scipy.stats import ttest_ind
 from scipy.stats import chi2_contingency
 from sklearn.preprocessing import LabelEncoder
 from sklearn.cluster import KMeans
-
+import geopy.distance
+from imblearn.over_sampling import SMOTE
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -108,9 +109,6 @@ df.head()
 st.write("Additional dataset 2: distance")
 
 st.write("A random laundry service shop is selected as the center point and the distance between each of the customers and the laundry shop is calculated.")
-
-
-import geopy.distance
 
 #laundry service location: Express Home Laundry, 24, Jalan Helang 15, Bandar Puchong Jaya, 47100 Puchong, Selangor
 laun_coords = (3.060292314138968, 101.62708937958328)
@@ -304,7 +302,6 @@ st.write(prob_LR)
 
 st.subheader("Logistic Regression with SMOTE")
 
-from imblearn.over_sampling import SMOTE
 os = SMOTE()
 columns = X_train.columns
 os_data_X, os_data_y = os.fit_resample(X_train, y_train)
